@@ -33,6 +33,9 @@
 
 	let hideZeroDollarInvoices = $state(false)
 
+	let achInput
+	let qbInput
+
 	const normalize = value => {
 		const normalized = String(value ?? '')
 			.trim()
@@ -56,10 +59,8 @@
 			currency: 'USD',
 		}).format(value)
 
-	const parseFile = async file => {
-		const text = await file.text()
-
-		return new Promise((resolve, reject) => {
+	const parseCsvText = text =>
+		new Promise((resolve, reject) => {
 			Papa.parse(text, {
 				header: true,
 				skipEmptyLines: true,
@@ -67,6 +68,11 @@
 				error: reject,
 			})
 		})
+
+	const parseFile = async file => {
+		const text = await file.text()
+
+		return parseCsvText(text)
 	}
 
 	const hasValue = row => column => normalize(row[column]) !== ''
@@ -89,6 +95,34 @@
 		const rows = await parseFile(file)
 
 		qbRows = rows.filter(row => hasValue(row)(QB_KEY))
+	}
+
+	const loadSampleData = async () => {
+		const [achResponse, qbResponse] = await Promise.all([
+			fetch('/fake-ach.csv'),
+			fetch('/fake-qb.csv'),
+		])
+
+		const [achText, qbText] = await Promise.all([
+			achResponse.text(),
+			qbResponse.text(),
+		])
+
+		const [achData, qbData] = await Promise.all([
+			parseCsvText(achText),
+			parseCsvText(qbText),
+		])
+
+		achRows = achData.filter(row => hasValue(row)(ACH_KEY))
+		qbRows = qbData.filter(row => hasValue(row)(QB_KEY))
+	}
+
+	const reset = () => {
+		achRows = []
+		qbRows = []
+		hideZeroDollarInvoices = false
+		if (achInput) achInput.value = ''
+		if (qbInput) qbInput.value = ''
 	}
 
 	const sumColumn = (rows, column) =>
@@ -155,24 +189,58 @@
 	}
 </script>
 
-<div class="uploads">
-	<label>
-		ACH File
-		<input type="file" accept=".csv" onchange={loadAchFile} />
-	</label>
+<p class="instructions">
+	Choose your files:
+</p>
 
-	<label>
-		QuickBooks File
-		<input type="file" accept=".csv" onchange={loadQbFile} />
-	</label>
+<div class="uploads">
+	<div class="upload-row">
+		<label for="ach-file">ACH File</label>
+		<input
+			id="ach-file"
+			bind:this={achInput}
+			type="file"
+			accept=".csv"
+			onchange={loadAchFile}
+		/>
+	</div>
+
+	<div class="upload-row">
+		<label for="qb-file">QuickBooks File</label>
+		<input
+			id="qb-file"
+			bind:this={qbInput}
+			type="file"
+			accept=".csv"
+			onchange={loadQbFile}
+		/>
+	</div>
+</div>
+
+<p class="or">
+	or
+</p>
+
+<div class="actions">
+	<button onclick={loadSampleData}>
+		Try Sample Data
+	</button>
+
+	{#if hasFiles}
+		<button onclick={reset}>
+			Reset
+		</button>
+	{/if}
 </div>
 
 {#if hasFiles}
-	<label class="checkbox">
-		<input type="checkbox" bind:checked={hideZeroDollarInvoices} />
+	<div class="controls">
+		<label class="checkbox">
+			<input type="checkbox" bind:checked={hideZeroDollarInvoices} />
 
-		Hide zero-dollar invoices
-	</label>
+			Hide zero-dollar invoices
+		</label>
+	</div>
 
 	<section class="summary">
 		<h2>Summary</h2>
@@ -300,22 +368,54 @@
 {/if}
 
 <style>
+	.instructions {
+		margin-bottom: 1rem;
+		font-size: 1.125rem;
+		font-weight: 600;
+	}
+
+	.or {
+		margin-block: 1rem;
+		text-align: left;
+		font-size: 0.875rem;
+		color: var(--color-slate-300);
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		justify-content: flex-start;
+	}
+
 	.uploads {
 		display: grid;
 		gap: 1rem;
-		margin-bottom: 2rem;
+		margin-bottom: 1rem;
 	}
 
-	label {
+	.upload-row {
 		display: grid;
-		gap: 0.25rem;
+		grid-template-columns: 8rem fit-content(20rem);
+		align-items: center;
+		gap: 1rem;
+	}
+
+	@media (width < 40rem) {
+		.upload-row {
+			grid-template-columns: 1fr;
+			gap: 0.5rem;
+		}
+	}
+
+	.controls {
+		margin-block: 1rem 2rem;
 	}
 
 	.checkbox {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 2rem;
 	}
 
 	input[type='checkbox'] {
@@ -323,6 +423,8 @@
 	}
 
 	input[type='file'] {
+		inline-size: 100%;
+		min-inline-size: 0;
 		padding: 0.5rem;
 	}
 

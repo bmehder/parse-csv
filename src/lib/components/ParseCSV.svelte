@@ -176,6 +176,7 @@
 	let netDifference = $derived(missingFromQbTotal - missingFromAchTotal)
 
 	let hasFiles = $derived(achRows.length > 0 && qbRows.length > 0)
+	let hasData = $derived(achRows.length > 0 || qbRows.length > 0)
 
 	const isNumericColumn = column =>
 		achNumericColumns.includes(column) || qbNumericColumns.includes(column)
@@ -217,20 +218,22 @@
 	</div>
 </div>
 
-<p class="or">
-	or
-</p>
+{#if !hasData}
+	<p class="or">
+		or
+	</p>
+{/if}
 
 <div class="actions">
-	<button onclick={loadSampleData}>
-		Try Sample Data
-	</button>
-
-	{#if hasFiles}
-		<button onclick={reset}>
-			Reset
+	{#if !hasData}
+		<button onclick={loadSampleData}>
+			Try Sample Data
 		</button>
 	{/if}
+
+	<button onclick={reset}>
+		Reset
+	</button>
 </div>
 
 {#if hasFiles}

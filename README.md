@@ -54,10 +54,9 @@ Your CSV files are never uploaded to a server.
 
 This project is built with:
 
-- Svelte 5
 - SvelteKit
 - Papa Parse
-- Tailwind CSS v4
+- Tailwind
 
 ### Install
 

@@ -77,14 +77,18 @@
 
 	const hasValue = row => column => normalize(row[column]) !== ''
 
+	const loadRows = async (file, key) => {
+		const rows = await parseFile(file)
+
+		return rows.filter(row => hasValue(row)(key))
+	}
+
 	const loadAchFile = async event => {
 		const file = event.target.files[0]
 
 		if (!file) return
 
-		const rows = await parseFile(file)
-
-		achRows = rows.filter(row => hasValue(row)(ACH_KEY))
+		achRows = await loadRows(file, ACH_KEY)
 	}
 
 	const loadQbFile = async event => {
@@ -92,37 +96,39 @@
 
 		if (!file) return
 
-		const rows = await parseFile(file)
+		qbRows = await loadRows(file, QB_KEY)
+	}
 
-		qbRows = rows.filter(row => hasValue(row)(QB_KEY))
+	const loadSampleRows = async (path, key) => {
+		const response = await fetch(path)
+		const text = await response.text()
+		const rows = await parseCsvText(text)
+
+		return rows.filter(row => hasValue(row)(key))
 	}
 
 	const loadSampleData = async () => {
-		const [achResponse, qbResponse] = await Promise.all([
-			fetch('/fake-ach.csv'),
-			fetch('/fake-qb.csv'),
-		])
-
-		const [achText, qbText] = await Promise.all([
-			achResponse.text(),
-			qbResponse.text(),
-		])
-
 		const [achData, qbData] = await Promise.all([
-			parseCsvText(achText),
-			parseCsvText(qbText),
+			loadSampleRows('/fake-ach.csv', ACH_KEY),
+			loadSampleRows('/fake-qb.csv', QB_KEY),
 		])
 
-		achRows = achData.filter(row => hasValue(row)(ACH_KEY))
-		qbRows = qbData.filter(row => hasValue(row)(QB_KEY))
+		achRows = achData
+		qbRows = qbData
 	}
 
 	const reset = () => {
 		achRows = []
 		qbRows = []
 		hideZeroDollarInvoices = false
-		if (achInput) achInput.value = ''
-		if (qbInput) qbInput.value = ''
+
+		if (achInput) {
+			achInput.value = ''
+		}
+
+		if (qbInput) {
+			qbInput.value = ''
+		}
 	}
 
 	const sumColumn = (rows, column) =>
